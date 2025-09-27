@@ -67,3 +67,4 @@ def test_load_categories_from_json(tmp_path):
     assert len(cats[0].products) == 2
     assert Category.category_count == 1
     assert Category.product_count == 2
+
