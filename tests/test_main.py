@@ -1,5 +1,6 @@
 import pytest
-from shop_core.main import Product, Category
+from shop_core.product import Product
+from shop_core.category import Category
 
 
 @pytest.fixture(autouse=True)
