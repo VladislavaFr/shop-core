@@ -1,132 +1,292 @@
 import json
-from typing import List
 
+
+# Класс Product
 
 class Product:
-    """Класс продукта интернет-магазина."""
+    """
+    Класс продукта для интернет-магазина.
 
+    Атрибуты:
+        name (str): Название продукта
+        description (str): Описание продукта
+        _price (float): Цена продукта (приватный атрибут)
+        quantity (int): Количество на складе
+    """
     def __init__(self, name: str, description: str, price: float, quantity: int):
+        """
+        Инициализация продукта.
+
+        Args:
+            name (str): Название продукта
+            description (str): Описание продукта
+            price (float): Цена продукта
+            quantity (int): Количество на складе
+        """
         self.name = name
         self.description = description
-        self._price = float(price)
-        self.quantity = int(quantity)
+        self._price = price if price > 0 else 0
+        self.quantity = quantity
 
     @property
     def price(self):
+        """
+        Геттер для приватного атрибута цены.
+
+        Returns:
+            float: Текущая цена продукта
+        """
         return self._price
 
     @price.setter
-    def price(self, value):
-        if value <= 0:
+    def price(self, new_price):
+        """
+        Сеттер для приватного атрибута цены.
+        Проверяет корректность новой цены и при понижении запрашивает подтверждение пользователя.
+
+        Args:
+            new_price (float): Новая цена продукта
+        """
+        if new_price <= 0:
             print("Цена не должна быть нулевая или отрицательная")
-        elif value < self._price:
-            ans = input(f"Вы хотите понизить цену с {self._price} до {value}? (y/n): ")
-            if ans.lower() == "y":
-                self._price = value
+        elif new_price < self._price:
+            confirm = input(f"Вы понижаете цену с {self._price} до {new_price}. Подтвердить? (y/n) ")
+            if confirm.lower() == "y":
+                self._price = new_price
         else:
-            self._price = value
+            self._price = new_price
 
     @classmethod
-    def new_product(cls, data: dict, products_list: List['Product'] = None):
-        """Создаёт новый объект Product из словаря, проверяет на дубликаты"""
-        if products_list:
-            for prod in products_list:
-                if prod.name == data["name"]:
-                    prod.quantity += data["quantity"]
-                    if data["price"] > prod.price:
-                        prod.price = data["price"]
-                    return prod
-        return cls(
-            data["name"], data["description"], data["price"], data["quantity"]
-        )
+    def new_product(cls, product_dict: dict, existing_products=None):
+        """
+        Класс-метод для создания нового продукта из словаря.
+        Если продукт с таким именем уже есть в списке, обновляет количество и цену.
 
-    def __add__(self, other):
-        if not isinstance(other, Product):
-            return NotImplemented
-        return (self._price * self.quantity) + (other._price * other.quantity)
+        Args:
+            product_dict (dict): Словарь с ключами name, description, price, quantity
+            existing_products (list, optional): Список существующих объектов Product
+
+        Returns:
+            Product: Новый объект Product или обновленный существующий
+        """
+        if existing_products is None:
+            existing_products = []
+        for p in existing_products:
+            if p.name == product_dict["name"]:
+                p.quantity += product_dict["quantity"]
+                p.price = max(p.price, product_dict["price"])
+                return p
+        return cls(**product_dict)
 
     def __str__(self):
-        return f"{self.name}, {self._price} руб. Остаток: {self.quantity} шт."
+        """
+        Строковое представление продукта.
 
+        Returns:
+            str: "Название продукта, X руб. Остаток: X шт."
+        """
+        return f"{self.name}, {self.price} руб. Остаток: {self.quantity} шт."
+
+    def __add__(self, other):
+        """
+        Магический метод сложения двух продуктов.
+        Складывает только объекты одного класса и возвращает суммарную стоимость.
+
+        Args:
+            other (Product): Второй объект для сложения
+
+        Returns:
+            float: Сумма произведений цены на количество для двух продуктов
+
+        Raises:
+            TypeError: Если объекты разных классов
+        """
+        if type(self) != type(other):
+            raise TypeError("Можно складывать только объекты одного класса")
+        return self.price * self.quantity + other.price * other.quantity
+
+
+
+# Класс Category
 
 class Category:
-    """Класс категории товаров с подсчётом всех категорий и продуктов."""
+    """
+    Класс категории товаров.
 
+    Атрибуты класса:
+        category_count (int): Общее количество категорий
+        product_count (int): Общее количество продуктов во всех категориях
+    """
     category_count = 0
     product_count = 0
 
-    def __init__(self, name: str, description: str, products: List[Product]):
+    def __init__(self, name: str, description: str, products=None):
+        """
+        Инициализация категории.
+
+        Args:
+            name (str): Название категории
+            description (str): Описание категории
+            products (list, optional): Список продуктов в категории
+        """
         self.name = name
         self.description = description
-        self._products = products
-
+        self._products = products if products else []
         Category.category_count += 1
-        Category.product_count += len(products)
+        Category.product_count += len(self._products)
 
-    def add_product(self, product: Product):
+    def add_product(self, product):
+        """
+        Добавление продукта в категорию.
+        Проверяет, что добавляется объект Product или его наследник.
+
+        Args:
+            product (Product): Объект продукта для добавления
+
+        Raises:
+            TypeError: Если передан не продукт
+        """
+        if not isinstance(product, Product):
+            raise TypeError("Можно добавлять только объекты Product или его наследников")
         self._products.append(product)
         Category.product_count += 1
 
     @property
     def products(self):
-        return "".join([f"{str(prod)}\n" for prod in self._products])
+        """
+        Геттер для списка продуктов.
+        Возвращает строку со всеми продуктами.
+
+        Returns:
+            str: Перечень продуктов в формате "__str__" каждого продукта
+        """
+        return "\n".join(str(p) for p in self._products)
 
     def __str__(self):
-        return f"{self.name}, количество продуктов: {len(self._products)} шт."
+        """
+        Строковое представление категории.
+        Считает общее количество товаров на складе.
 
+        Returns:
+            str: "Название категории, количество продуктов: X шт."
+        """
+        total_quantity = sum(p.quantity for p in self._products)
+        return f"{self.name}, количество продуктов: {total_quantity} шт."
+
+
+
+# Классы-наследники
+
+class Smartphone(Product):
+    """
+    Класс смартфона, наследник Product.
+
+    Атрибуты:
+        efficiency (int): Производительность
+        model (str): Модель
+        memory (int): Объем встроенной памяти
+        color (str): Цвет
+    """
+
+    def __init__(self, name, description, price, quantity, efficiency, model, memory, color):
+        super().__init__(name, description, price, quantity)
+        self.efficiency = efficiency
+        self.model = model
+        self.memory = memory
+        self.color = color
+
+
+class LawnGrass(Product):
+    """
+    Класс травы газонной, наследник Product.
+
+    Атрибуты:
+        country (str): Страна-производитель
+        germination_period (int): Срок прорастания
+        color (str): Цвет
+    """
+
+    def __init__(self, name, description, price, quantity, country, germination_period, color):
+        super().__init__(name, description, price, quantity)
+        self.country = country
+        self.germination_period = germination_period
+        self.color = color
+
+
+
+# Итератор по категории
 
 class CategoryIterator:
-    """Итератор для перебора продуктов категории"""
+    """
+    Итератор по продуктам категории.
+    Позволяет перебирать все продукты в цикле for.
 
-    def __init__(self, category: Category):
-        self._category = category
+    Атрибуты:
+        _products (list): Список продуктов категории
+        _index (int): Текущий индекс итерации
+    """
+
+    def __init__(self, category):
+        self._products = category._products
         self._index = 0
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        if self._index < len(self._category._products):
-            prod = self._category._products[self._index]
-            self._index += 1
-            return prod
-        raise StopIteration
+        if self._index >= len(self._products):
+            raise StopIteration
+        product = self._products[self._index]
+        self._index += 1
+        return product
 
 
-def load_categories_from_json(file_path: str) -> List[Category]:
-    """Загрузка категорий и продуктов из JSON файла"""
-    with open(file_path, encoding="utf-8") as f:
+
+# Загрузка данных из JSON
+
+def load_products_from_json(file_path):
+    """
+    Загружает категории и продукты из JSON-файла и возвращает список объектов Category.
+
+    Args:
+        file_path (str): Путь к JSON-файлу
+
+    Returns:
+        list: Список объектов Category
+    """
+    with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
-
     categories = []
     for cat_data in data:
-        products = [Product(**prod) for prod in cat_data.get("products", [])]
-        category = Category(cat_data["name"], cat_data.get("description", ""), products)
+        products = [Product.new_product(prod) for prod in cat_data["products"]]
+        category = Category(cat_data["name"], cat_data["description"], products)
         categories.append(category)
     return categories
 
 
+
+# Пример использования
+
 if __name__ == "__main__":
-    # Примеры использования
-    product1 = Product("Samsung Galaxy S23 Ultra", "256GB, Серый", 180000.0, 5)
-    product2 = Product("Iphone 15", "512GB, Gray space", 210000.0, 8)
-    product3 = Product("Xiaomi Redmi Note 11", "1024GB, Синий", 31000.0, 14)
+    # Создаем продукты
+    p1 = Product("Кофе", "Арабика", 250, 10)
+    p2 = Smartphone("iPhone", "Смартфон", 120000, 5, 95, "14 Pro", 256, "черный")
+    p3 = LawnGrass("Газон", "Трава", 500, 20, "Голландия", 7, "зеленый")
 
-    category1 = Category("Смартфоны", "Смартфоны с расширенным функционалом", [product1, product2, product3])
-    print(category1)
-    print(category1.products)
+    # Создаем категории
+    cat1 = Category("Напитки", "Разные напитки")
+    cat2 = Category("Электроника", "Разная электроника")
+    cat3 = Category("Сад", "Товары для сада")
 
-    # Добавление нового продукта
-    product4 = Product("Huawei P60", "128GB", 90000.0, 10)
-    category1.add_product(product4)
-    print(category1)
-    print(category1.products)
+    # Добавляем продукты
+    cat1.add_product(p1)
+    cat2.add_product(p2)
+    cat3.add_product(p3)
 
-    # Итератор
-    print("Итератор по товарам:")
-    for prod in CategoryIterator(category1):
-        print(prod)
+    # Печатаем
+    print(cat1)
+    print(cat1.products)
+    print(cat2)
+    print(cat2.products)
 
-    # Проверка сложения продуктов
-    total = product1 + product2
-    print(f"Сумма стоимости двух продуктов: {total} руб.")
+    
