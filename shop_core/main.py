@@ -288,3 +288,5 @@ if __name__ == "__main__":
     print(cat1.products)
     print(cat2)
     print(cat2.products)
+
+    
