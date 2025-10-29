@@ -2,6 +2,13 @@ import json
 from abc import ABC, abstractmethod
 
 
+# --- Пользовательское исключение ---
+class ZeroQuantityError(Exception):
+    """Вызывается, если пытаются добавить товар с нулевым количеством."""
+    def __init__(self, message="Товар с нулевым количеством не может быть добавлен"):
+        super().__init__(message)
+
+
 # Абстрактный базовый класс
 class BaseProduct(ABC):
     """
@@ -48,6 +55,9 @@ class Product(CreationLoggerMixin, BaseProduct):
     """
 
     def __init__(self, name: str, description: str, price: float, quantity: int):
+        # Проверка количества на ноль
+        if quantity == 0:
+            raise ValueError("Товар с нулевым количеством не может быть добавлен")
         super().__init__(name, description, price if price > 0 else 0, quantity)
 
     @property
@@ -98,10 +108,21 @@ class Category:
         Category.product_count += len(self._products)
 
     def add_product(self, product):
-        if not isinstance(product, Product):
-            raise TypeError("Можно добавлять только объекты Product или его наследников")
-        self._products.append(product)
-        Category.product_count += 1
+        try:
+            if not isinstance(product, Product):
+                raise TypeError("Можно добавлять только объекты Product или его наследников")
+
+            if product.quantity == 0:
+                raise ZeroQuantityError()
+
+            self._products.append(product)
+            Category.product_count += 1
+        except ZeroQuantityError as e:
+            print(e)
+        else:
+            print(f"Товар '{product.name}' успешно добавлен в категорию '{self.name}'.")
+        finally:
+            print("Обработка добавления товара завершена.")
 
     @property
     def products(self):
@@ -110,6 +131,15 @@ class Category:
     def __str__(self):
         total_quantity = sum(p.quantity for p in self._products)
         return f"{self.name}, количество продуктов: {total_quantity} шт."
+
+    # --- Новый метод для средней цены ---
+    def average_price(self):
+        try:
+            total = sum(p.price for p in self._products)
+            avg = total / len(self._products)
+            return round(avg, 2)
+        except ZeroDivisionError:
+            return 0
 
 
 # Классы-наследники
@@ -177,5 +207,5 @@ if __name__ == "__main__":
     print(cat1.products)
     print(cat2)
     print(cat2.products)
+    print(f"Средняя цена товаров в категории '{cat1.name}': {cat1.average_price()}")
 
-    

@@ -7,6 +7,7 @@ from shop_core.main import (
     CategoryIterator,
     BaseProduct,
     CreationLoggerMixin,
+    ZeroQuantityError,
 )
 
 
@@ -140,3 +141,28 @@ def test_creation_logger_mixin_output(capsys):
     captured = capsys.readouterr()
     assert "Создан объект" in captured.out
     assert "Product" in captured.out
+
+
+# ---------- Тесты для исключений ----------
+def test_product_zero_quantity_exception():
+    with pytest.raises(ValueError):
+        Product("Ошибка", "Ноль", 100, 0)
+
+
+def test_category_add_zero_quantity(capsys):
+    cat = Category("Проверка", "Тест")
+    bad_product = Product("Плохой", "Описание", 50, 1)
+    bad_product.quantity = 0
+    cat.add_product(bad_product)
+    captured = capsys.readouterr()
+    assert "Товар с нулевым количеством не может быть добавлен" in captured.out
+    assert "Обработка добавления товара завершена" in captured.out
+
+
+def test_category_average_price(category, product):
+    avg = category.average_price()
+    assert avg == product.price
+
+def test_category_average_price_empty():
+    cat = Category("Пустая", "Нет товаров", [])
+    assert cat.average_price() == 0
